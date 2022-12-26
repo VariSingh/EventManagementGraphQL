@@ -1,3 +1,4 @@
+require("dotenv").config();
 var createError = require("http-errors");
 var express = require("express");
 var path = require("path");
@@ -5,8 +6,22 @@ var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 const { graphqlHTTP } = require("express-graphql");
 const { buildSchema } = require("graphql");
+//const { MONGODB_URL, MONGODB_PORT, DB_NAME } = require("./utils/config");
+const mongoose = require("mongoose");
+mongoose
+  .connect(`mongodb://localhost:27017/event-management`)
+  .then(() => {
+    console.log("MongoDB connected");
+  })
+  .catch((error) => {
+    console.log("error", error);
+  });
+
+const Event = require("./models/events");
+
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
+const { config } = require("./utils/config");
 
 var app = express();
 
@@ -43,20 +58,26 @@ app.use(
       }
     `),
     rootValue: {
-      events: () => {
-        return events;
+      events: async () => {
+        try {
+          return await Event.find();
+        } catch (error) {
+          console.log("error ", error);
+        }
       },
-      createEvent: (args) => {
-        const { title, description, price, date } = args.eventInput;
-        const event = {
-          _id: Math.random().toString(),
-          title: title,
-          description: description,
-          price: +price,
-          date: date,
-        };
-        events.push(event);
-        return event;
+      createEvent: async (args) => {
+        try {
+          const { title, description, price, date } = args.eventInput;
+          const event = new Event({
+            title: title,
+            description: description,
+            price: +price,
+            date: new Date(date),
+          });
+          return await event.save();
+        } catch (error) {
+          console.log("error while creating event ", error);
+        }
       },
     },
     graphiql: true,

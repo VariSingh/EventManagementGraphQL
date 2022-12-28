@@ -38,12 +38,14 @@ app.use(
       description: String!
       price: Float!
       date: String!
+      creator: User!
     }
 
     type User {
-      _id: ID!,
-      email:String!,
+      _id: ID!
+      email:String!
       password:String
+      events:[Event!]
     }
 
     input EventInput {
@@ -54,16 +56,17 @@ app.use(
     }
 
     input UserInput {
-      email:String!,
+      email:String!
       password:String!
     }
 
     type RootQuery {
       events: [Event!]!
+      users: [User!]!
     }
     type RootMutation {
       createEvent(eventInput: EventInput): Event
-      createUser(userInput:UserInput):User
+      createUser(userInput: UserInput):User
     }
       schema {
         query:RootQuery
@@ -73,14 +76,14 @@ app.use(
     rootValue: {
       events: async () => {
         try {
-          return await Event.find();
+          return await Event.find().populate("creator");
         } catch (error) {
           console.log("error ", error);
         }
       },
       users: async () => {
         try {
-          return await User.find();
+          return await User.find().populate("events");
         } catch (error) {
           console.log("error ", error);
         }
@@ -93,8 +96,23 @@ app.use(
             description: description,
             price: +price,
             date: new Date(date),
+            creator: "63a9bcc49e723f086327179a",
           });
-          return await event.save();
+          const savedEvent = await event.save();
+          const user = await User.findById("63a9bcc49e723f086327179a");
+          if (!user) {
+            throw new Error("User does not exist");
+          }
+          const updatedUser = await User.findByIdAndUpdate(
+            "63a9bcc49e723f086327179a",
+            {
+              $push: { events: event },
+            }
+          );
+          if (!updatedUser) {
+            throw new Error("Event created but not updated for user");
+          }
+          return event;
         } catch (error) {
           console.log("error while creating event ", error);
         }

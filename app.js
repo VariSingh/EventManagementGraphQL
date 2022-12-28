@@ -102,17 +102,18 @@ app.use(
       createUser: async (args) => {
         try {
           const { email, password } = args.userInput;
-          const user = await User.find({ email: email });
+          const user = await User.findOne({ email: email });
           if (user) {
-            return "user already exists";
+            throw new Error("user already exists");
           }
           const newUser = new User({
             email: email,
             password: password,
           });
-          return await user.save();
+          return await newUser.save();
         } catch (error) {
           console.log("error while creating user ", error);
+          return error;
         }
       },
     },

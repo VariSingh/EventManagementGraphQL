@@ -5,8 +5,7 @@ var path = require("path");
 var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 const { graphqlHTTP } = require("express-graphql");
-const { buildSchema } = require("graphql");
-const { compare } = require("bcrypt");
+
 //const { MONGODB_URL, MONGODB_PORT, DB_NAME } = require("./utils/config");
 const mongoose = require("mongoose");
 mongoose
@@ -18,123 +17,19 @@ mongoose
     console.log("error", error);
   });
 
-const Event = require("./models/event");
-const User = require("./models/user");
-
-var indexRouter = require("./routes/index");
-var usersRouter = require("./routes/users");
-const { config } = require("./utils/config");
+const indexRouter = require("./routes/index");
+const usersRouter = require("./routes/users");
 const helmet = require("helmet");
+const graphQLSchema = require("./graphql/schema");
+const graphQLResolvers = require("./graphql/resolvers");
 
 var app = express();
 
 app.use(
   "/graphql",
   graphqlHTTP({
-    schema: buildSchema(`
-    type Event {
-      _id: ID!
-      title: String!
-      description: String!
-      price: Float!
-      date: String!
-      creator: User!
-    }
-
-    type User {
-      _id: ID!
-      email:String!
-      password:String
-      events:[Event!]
-    }
-
-    input EventInput {
-      title:String!
-      description: String!
-      price:Float!
-      date:String!
-    }
-
-    input UserInput {
-      email:String!
-      password:String!
-    }
-
-    type RootQuery {
-      events: [Event!]!
-      users: [User!]!
-    }
-    type RootMutation {
-      createEvent(eventInput: EventInput): Event
-      createUser(userInput: UserInput):User
-    }
-      schema {
-        query:RootQuery
-        mutation: RootMutation
-      }
-    `),
-    rootValue: {
-      events: async () => {
-        try {
-          return await Event.find().populate("creator");
-        } catch (error) {
-          console.log("error ", error);
-        }
-      },
-      users: async () => {
-        try {
-          return await User.find().populate("events");
-        } catch (error) {
-          console.log("error ", error);
-        }
-      },
-      createEvent: async (args) => {
-        try {
-          const { title, description, price, date } = args.eventInput;
-          const event = new Event({
-            title: title,
-            description: description,
-            price: +price,
-            date: new Date(date),
-            creator: "63a9bcc49e723f086327179a",
-          });
-          const savedEvent = await event.save();
-          const user = await User.findById("63a9bcc49e723f086327179a");
-          if (!user) {
-            throw new Error("User does not exist");
-          }
-          const updatedUser = await User.findByIdAndUpdate(
-            "63a9bcc49e723f086327179a",
-            {
-              $push: { events: event },
-            }
-          );
-          if (!updatedUser) {
-            throw new Error("Event created but not updated for user");
-          }
-          return event;
-        } catch (error) {
-          console.log("error while creating event ", error);
-        }
-      },
-      createUser: async (args) => {
-        try {
-          const { email, password } = args.userInput;
-          const user = await User.findOne({ email: email });
-          if (user) {
-            throw new Error("user already exists");
-          }
-          const newUser = new User({
-            email: email,
-            password: password,
-          });
-          return await newUser.save();
-        } catch (error) {
-          console.log("error while creating user ", error);
-          return error;
-        }
-      },
-    },
+    schema: graphQLSchema,
+    rootValue: graphQLResolvers,
     graphiql: true,
   })
 );

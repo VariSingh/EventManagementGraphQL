@@ -9,6 +9,12 @@ module.exports = buildSchema(`
       creator: User!
     }
 
+    type Booking {
+      _id:ID!
+      creator:User!
+      event:Event!
+    }
+
     type User {
       _id: ID!
       email:String!
@@ -31,10 +37,13 @@ module.exports = buildSchema(`
     type RootQuery {
       events: [Event!]!
       users: [User!]!
+      bookings: [Booking!]!
     }
     type RootMutation {
       createEvent(eventInput: EventInput): Event
       createUser(userInput: UserInput):User
+      createBooking(eventId:ID!): Booking
+      cancelBooking(bookingId:ID!):Booking
     }
       schema {
         query:RootQuery
